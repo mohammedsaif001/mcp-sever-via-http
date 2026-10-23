@@ -1,0 +1,157 @@
+{
+  "info": {
+    "name": "MCP Connect via HTTP (DeepWiki)",
+    "description": "Express REST API that calls the free DeepWiki MCP server. Start the server with `npm run dev`, then run these requests. No auth needed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "owner", "value": "expressjs" },
+    { "key": "repo", "value": "express" },
+    { "key": "githubUser", "value": "mohammedsaif001" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('status is ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List MCP tools",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/tools"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('includes ask_wiki_question', () => {",
+              "  const names = pm.response.json().tools.map(t => t.name);",
+              "  pm.expect(names).to.include('ask_wiki_question');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat - ask a question",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/chat",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"repo\": \"{{owner}}/{{repo}}\",\n  \"question\": \"How does routing middleware work?\"\n}",
+          "options": { "raw": { "language": "json" } }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('has a non-empty answer', () => pm.expect(pm.response.json().answer).to.be.a('string').and.not.empty);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat - invalid body (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/chat",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"repo\": \"not-a-repo\",\n  \"question\": \"\"\n}",
+          "options": { "raw": { "language": "json" } }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 400', () => pm.response.to.have.status(400));",
+              "pm.test('reports field errors', () => {",
+              "  const { details } = pm.response.json();",
+              "  pm.expect(details).to.have.property('repo');",
+              "  pm.expect(details).to.have.property('question');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wiki structure",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/wiki/{{owner}}/{{repo}}/structure"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('has structure text', () => pm.expect(pm.response.json().structure).to.be.a('string').and.not.empty);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Indexed repos for a GitHub user",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/users/{{githubUser}}/indexed-repos?includeForks=false",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{githubUser}}", "indexed-repos"],
+          "query": [{ "key": "includeForks", "value": "false", "description": "Set to true to also check forked repos" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('has indexed and notIndexed lists', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.indexed).to.be.an('array');",
+              "  pm.expect(body.notIndexed).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
