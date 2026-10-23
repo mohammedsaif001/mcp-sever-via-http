@@ -8,7 +8,9 @@
     { "key": "baseUrl", "value": "http://localhost:3000" },
     { "key": "owner", "value": "expressjs" },
     { "key": "repo", "value": "express" },
-    { "key": "githubUser", "value": "mohammedsaif001" }
+    { "key": "githubUser", "value": "mohammedsaif001" },
+    { "key": "d365ChannelId", "value": "<your-channel-id>" },
+    { "key": "d365SessionId", "value": "" }
   ],
   "item": [
     {
@@ -150,6 +152,172 @@
               "});"
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "D365 Commerce",
+      "description": "Direct tool calls to the D365 Commerce MCP server. Set the d365ChannelId collection variable (a number) first. The body of POST /d365/tools/:name is the tool's arguments.",
+      "item": [
+        {
+          "name": "Chat - start conversation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/d365/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Show me some products you have in stock\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('has a reply', () => pm.expect(body.reply).to.be.a('string').and.not.empty);",
+                  "// Save the session so the next request continues this conversation",
+                  "pm.collectionVariables.set('d365SessionId', body.sessionId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chat - continue conversation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/d365/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{d365SessionId}}\",\n  \"message\": \"Create a cart and add 2 of the first one\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('same session', () => pm.expect(pm.response.json().sessionId).to.eql(pm.collectionVariables.get('d365SessionId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chat - end conversation",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/d365/chat/{{d365SessionId}}" }
+        },
+        {
+          "name": "List D365 tools",
+          "request": { "method": "GET", "url": "{{baseUrl}}/d365/tools" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('includes search_products', () => pm.expect(pm.response.json().tools.map(t => t.name)).to.include('search_products'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search products",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/d365/tools/search_products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"searchTerm\": \"shirt\",\n  \"channelId\": {{d365ChannelId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get product by ID",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/d365/tools/get_product_by_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"<RecordId from search>\",\n  \"channelId\": {{d365ChannelId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Check product availability",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/d365/tools/check_product_availability",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productIds\": [\"<RecordId from search>\"],\n  \"channelId\": {{d365ChannelId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Create cart",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/d365/tools/create_cart",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channelId\": {{d365ChannelId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Search orders",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/d365/tools/search_orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channelId\": {{d365ChannelId}},\n  \"customerEmail\": \"<customer email>\",\n  \"top\": 10\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Missing channelId (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/d365/tools/search_products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"searchTerm\": \"shirt\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 400 (only when D365_CHANNEL_ID is not set in .env)', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ]
         }
       ]
     }

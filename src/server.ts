@@ -1,7 +1,9 @@
+import 'dotenv/config'
 import express, { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
+import { closeD365, d365Router } from "./d365.js";
 import { GitHubError, listPublicRepos } from "./github.js";
-import { callTool, closeMcpClient, listTools } from "./mcpClient.js";
+import { deepwiki } from "./mcpClient.js";
 
 const app = express();
 app.use(express.json());
@@ -20,7 +22,7 @@ app.get("/health", (_req, res) => {
 
 // Lists the tools the DeepWiki MCP server exposes.
 app.get("/tools", async (_req, res) => {
-  const tools = await listTools();
+  const tools = await deepwiki.listTools();
   res.json({ tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
 });
 
@@ -33,7 +35,7 @@ app.post("/chat", async (req, res) => {
   }
 
   const { repo, question } = parsed.data;
-  const result = await callTool("ask_wiki_question",{ repoName: repo, question });
+  const result = await deepwiki.callTool("ask_wiki_question", { repoName: repo, question });
 
   if (result.isError) {
     res.status(502).json({ error: "DeepWiki returned an error", details: result.text });
@@ -45,7 +47,7 @@ app.post("/chat", async (req, res) => {
 // Table of contents for a repo's DeepWiki docs.
 app.get("/wiki/:owner/:repo/structure", async (req, res) => {
   const repo = `${req.params.owner}/${req.params.repo}`;
-  const result = await callTool("read_wiki_structure", { repoName: repo });
+  const result = await deepwiki.callTool("read_wiki_structure", { repoName: repo });
 
   if (result.isError) {
     res.status(502).json({ error: "DeepWiki returned an error", details: result.text });
@@ -62,7 +64,7 @@ app.get("/users/:username/indexed-repos", async (req, res) => {
   const repos = (await listPublicRepos(username)).filter((r) => includeForks || !r.fork);
 
   const checks = await mapWithConcurrency(repos, 5, async (r) => {
-    const result = await callTool("read_wiki_structure", { repoName: r.fullName }).catch((err: unknown) => ({
+    const result = await deepwiki.callTool("read_wiki_structure", { repoName: r.fullName }).catch((err: unknown) => ({
       isError: true,
       text: err instanceof Error ? err.message : String(err),
     }));
@@ -82,6 +84,9 @@ app.get("/users/:username/indexed-repos", async (req, res) => {
     errors: checks.filter((c) => c.status === "error"),
   });
 });
+
+// Dynamics 365 Commerce MCP: natural-language chat plus direct tool calls over REST.
+app.use("/d365", d365Router);
 
 async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
@@ -112,7 +117,7 @@ const server = app.listen(PORT, () => {
 
 const shutdown = async () => {
   server.close();
-  await closeMcpClient();
+  await Promise.all([deepwiki.close(), closeD365()]);
   process.exit(0);
 };
 process.on("SIGINT", shutdown);
