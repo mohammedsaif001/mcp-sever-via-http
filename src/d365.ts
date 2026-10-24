@@ -46,7 +46,14 @@ d365Router.post("/tools/:name", async (req, res) => {
     return;
   }
 
-  const result = await d365!.callTool(name, args);
+  let result;
+  try {
+    result = await d365!.callTool(name, args);
+  } catch (err) {
+    if (!isUnauthorized(err)) throw err;
+    res.status(401).json({ error: unauthorizedMessage(name) });
+    return;
+  }
   if (result.isError) {
     res.status(502).json({ error: "D365 returned an error", details: result.text });
     return;
@@ -71,7 +78,16 @@ let agentPromise: Promise<{ agent: Agent<ChatContext>; mcpServer: MCPServerStrea
 function getAgent() {
   if (!agentPromise) {
     agentPromise = (async () => {
-      const mcpServer = new MCPServerStreamableHttp({ name: "d365-commerce", url: D365_MCP_URL!, cacheToolsList: true });
+      const mcpServer = new MCPServerStreamableHttp({
+        name: "d365-commerce",
+        url: D365_MCP_URL!,
+        cacheToolsList: true,
+        // Tell the model why a tool failed so it can explain instead of the whole run erroring.
+        errorFunction: ({ error }) =>
+          isUnauthorized(error)
+            ? "This tool needs a signed-in D365 customer and cannot be used anonymously. Tell the user it is unavailable without sign-in."
+            : `Tool failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
       await mcpServer.connect();
       const agent = new Agent<ChatContext>({
         name: "D365 Commerce assistant",
@@ -154,6 +170,19 @@ d365Router.delete("/chat/:sessionId", (req, res) => {
   const deleted = sessions.delete(req.params.sessionId);
   res.status(deleted ? 204 : 404).end();
 });
+
+// Order tools (search_orders, get_order_details) need a signed-in user; D365 answers
+// anonymous calls with HTTP 401 and an empty body, which the MCP SDK throws as code 401.
+function isUnauthorized(err: unknown): boolean {
+  for (let e = err; e; e = (e as { cause?: unknown }).cause) {
+    if ((e as { code?: unknown }).code === 401) return true;
+  }
+  return false;
+}
+
+function unauthorizedMessage(tool: string) {
+  return `D365 requires a signed-in customer for "${tool}" (HTTP 401). Anonymous access only covers products, availability and carts.`;
+}
 
 // D365 tools return JSON as text; hand it back as real JSON when it parses.
 function parseJson(text: string): unknown {
