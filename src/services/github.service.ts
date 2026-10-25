@@ -1,8 +1,5 @@
-export interface GitHubRepo {
-  fullName: string;
-  fork: boolean;
-  url: string;
-}
+import type { GitHubRepo } from "../models/github.model.js";
+import { GitHubError } from "../utils/errors.js";
 
 const MAX_PAGES = 5; // 500 repos is plenty for a PoC
 
@@ -28,13 +25,4 @@ export async function listPublicRepos(username: string): Promise<GitHubRepo[]> {
   }
 
   return repos;
-}
-
-export class GitHubError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
 }

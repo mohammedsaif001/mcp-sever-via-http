@@ -1,5 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { env } from "../config/env.js";
 
 /** A lazily-connected, shared client for one remote MCP server. */
 export class McpConnection {
@@ -56,4 +57,5 @@ export class McpConnection {
   }
 }
 
-export const deepwiki = new McpConnection("deepwiki", process.env.DEEPWIKI_MCP_URL ?? "https://mcp.deepwiki.com/mcp");
+export const deepwikiClient = new McpConnection("deepwiki", env.DEEPWIKI_MCP_URL);
+export const d365Client = env.D365_MCP_URL ? new McpConnection("d365", env.D365_MCP_URL) : null;
