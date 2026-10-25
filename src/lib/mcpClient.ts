@@ -1,5 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { d365AuthHeaders } from "../config/customer.js";
 import { env } from "../config/env.js";
 
 /** A lazily-connected, shared client for one remote MCP server. */
@@ -9,6 +10,7 @@ export class McpConnection {
   constructor(
     private readonly name: string,
     private readonly url: string,
+    private readonly headers: Record<string, string> = {},
   ) {}
 
   private getClient(): Promise<Client> {
@@ -18,7 +20,9 @@ export class McpConnection {
         client.onclose = () => {
           this.clientPromise = null; // reconnect on the next request
         };
-        await client.connect(new StreamableHTTPClientTransport(new URL(this.url)));
+        await client.connect(
+          new StreamableHTTPClientTransport(new URL(this.url), { requestInit: { headers: this.headers } }),
+        );
         return client;
       })().catch((err) => {
         this.clientPromise = null;
@@ -58,4 +62,4 @@ export class McpConnection {
 }
 
 export const deepwikiClient = new McpConnection("deepwiki", env.DEEPWIKI_MCP_URL);
-export const d365Client = env.D365_MCP_URL ? new McpConnection("d365", env.D365_MCP_URL) : null;
+export const d365Client = env.D365_MCP_URL ? new McpConnection("d365", env.D365_MCP_URL, d365AuthHeaders) : null;

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Agent, MCPServerStreamableHttp, MemorySession, run } from "@openai/agents";
+import { customerInstructions, customerToolDefaults, d365AuthHeaders } from "../config/customer.js";
 import { env } from "../config/env.js";
 import { d365Client } from "../lib/mcpClient.js";
 import type { ChatContext, D365ToolCall } from "../models/d365.model.js";
@@ -22,6 +23,7 @@ function buildInstructions(channelId: number | undefined) {
     "Reuse IDs (product RecordId, cartId) from earlier tool results in this conversation instead of asking again.",
     "Before creating a payment link or changing a cart's address or delivery, confirm with the user.",
     "Keep answers short. List products with name, RecordId and price.",
+    ...customerInstructions(),
   ].join("\n");
 }
 
@@ -32,6 +34,7 @@ function getAgent() {
         name: "d365-commerce",
         url: env.D365_MCP_URL!,
         cacheToolsList: true,
+        requestInit: { headers: d365AuthHeaders },
         // Tell the model why a tool failed so it can explain instead of the whole run erroring.
         errorFunction: ({ error }) =>
           isUnauthorized(error)
@@ -87,6 +90,11 @@ export class D365Service {
     const args: Record<string, unknown> = { ...rawArgs };
     if (args.channelId === undefined && env.D365_CHANNEL_ID) {
       args.channelId = Number(env.D365_CHANNEL_ID);
+    }
+    for (const [key, value] of Object.entries(customerToolDefaults)) {
+      if (value !== undefined && args[key] === undefined && key in (tool.inputSchema.properties ?? {})) {
+        args[key] = value;
+      }
     }
 
     const missing = (tool.inputSchema.required ?? []).filter((key) => args[key] === undefined);

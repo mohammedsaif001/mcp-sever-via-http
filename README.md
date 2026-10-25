@@ -67,6 +67,14 @@ Copy `.env.example` to `.env` and fill in your configuration:
 cp .env.example .env
 ```
 
+#### Signed-in D365 customer (optional)
+Order history and other account tools (e.g. `search_orders`) return **401** for anonymous callers. To act as a customer, fill the `D365_CUSTOMER_*` values in `.env`:
+
+- `D365_CUSTOMER_TOKEN`: the customer's sign-in token from your store's identity provider (raw token, no `Bearer ` prefix). It's sent as `Authorization: id_token <token>` (Commerce rejects `Bearer` for customer tokens) on every D365 MCP request. It expires (~1 hour).
+- `D365_CUSTOMER_ACCOUNT_NUMBER`, `D365_CUSTOMER_EMAIL`, `D365_CUSTOMER_NAME`, `D365_CUSTOMER_STREET/CITY/STATE/ZIP/COUNTRY`: added to the `/d365/chat` system prompt on every turn, and auto-filled into matching arguments on `/d365/tools/:name` when the request body leaves them out.
+
+All values are optional, and one customer applies to the whole app (PoC).
+
 ### 3. Run Development Server
 ```bash
 npm run dev
