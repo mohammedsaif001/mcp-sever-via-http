@@ -2,10 +2,10 @@ import { env } from "./env.js";
 
 /**
  * Auth header for D365 MCP requests, so tools run as the signed-in customer.
- * Commerce expects the "id_token" scheme for customer tokens; "Bearer" is rejected as InvalidUserToken.
+ * Only the "Bearer" scheme is accepted for customer tokens; passing Bearer works properly.
  */
 export const d365AuthHeaders: Record<string, string> = env.D365_CUSTOMER_TOKEN
-  ? { Authorization: `id_token ${env.D365_CUSTOMER_TOKEN}` }
+  ? { Authorization: `Bearer ${env.D365_CUSTOMER_TOKEN}` }
   : {};
 
 /**

@@ -4,9 +4,9 @@ Express REST API that connects to Model Context Protocol (MCP) servers (such as 
 
 ---
 
-## 📁 Architecture & Folder Structure
+## Architecture and Folder Structure
 
-The project follows a standard **MVC + Services** layered architecture:
+The project uses an MVC and services layered architecture:
 
 ```text
 src/
@@ -54,7 +54,7 @@ src/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Install Dependencies
 ```bash
@@ -68,12 +68,12 @@ cp .env.example .env
 ```
 
 #### Signed-in D365 customer (optional)
-Order history and other account tools (e.g. `search_orders`) return **401** for anonymous callers. To act as a customer, fill the `D365_CUSTOMER_*` values in `.env`:
+Account tools (such as `search_orders`) return 401 for anonymous callers. To authenticate as a customer, configure the `D365_CUSTOMER_*` variables in `.env`:
 
-- `D365_CUSTOMER_TOKEN`: the customer's sign-in token from your store's identity provider (raw token, no `Bearer ` prefix). It's sent as `Authorization: id_token <token>` (Commerce rejects `Bearer` for customer tokens) on every D365 MCP request. It expires (~1 hour).
-- `D365_CUSTOMER_ACCOUNT_NUMBER`, `D365_CUSTOMER_EMAIL`, `D365_CUSTOMER_NAME`, `D365_CUSTOMER_STREET/CITY/STATE/ZIP/COUNTRY`: added to the `/d365/chat` system prompt on every turn, and auto-filled into matching arguments on `/d365/tools/:name` when the request body leaves them out.
+- `D365_CUSTOMER_TOKEN`: Customer sign-in token from your identity provider (Azure AD B2C or Entra External ID). Only `Bearer` is accepted by Commerce for customer tokens; passing `Bearer` works properly. Provide the raw token without the `Bearer ` prefix, as the application automatically sends `Authorization: Bearer <token>` on D365 MCP requests. Tokens expire in approximately 1 hour.
+- `D365_CUSTOMER_ACCOUNT_NUMBER`, `D365_CUSTOMER_EMAIL`, `D365_CUSTOMER_NAME`, `D365_CUSTOMER_STREET/CITY/STATE/ZIP/COUNTRY`: Injected into the `/d365/chat` system prompt and auto-filled into matching arguments on `/d365/tools/:name` when omitted from the request body.
 
-All values are optional, and one customer applies to the whole app (PoC).
+These values are optional. One customer configuration applies across the application for PoC testing.
 
 ### 3. Run Development Server
 ```bash
@@ -93,7 +93,7 @@ npm run typecheck
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -105,4 +105,4 @@ npm run typecheck
 | `GET` | `/d365/tools` | List D365 Commerce MCP tools |
 | `POST` | `/d365/tools/:name` | Call a specific D365 Commerce tool directly |
 | `POST` | `/d365/chat` | AI shopping assistant chat (OpenAI Agent + D365 tools) |
-| `DELETE` | `/d365/chat/:sessionId` | Reset / delete a chat session |
+| `DELETE` | `/d365/chat/:sessionId` | Reset or delete a chat session |
